@@ -1,0 +1,26 @@
+{
+    "files.associations": {
+        "*.tcc": "cpp",
+        "array": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "memory": "cpp",
+        "functional": "cpp",
+        "type_traits": "cpp",
+        "exception": "cpp",
+        "fstream": "cpp",
+        "iosfwd": "cpp",
+        "new": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp",
+        "streambuf": "cpp",
+        "random": "cpp",
+        "algorithm": "cpp",
+        "tuple": "cpp"
+    }
+}
