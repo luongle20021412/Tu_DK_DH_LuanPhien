@@ -1,6 +1,7 @@
 #include "main.h"
 #include "_modbus.h"
 #include "_SHTx.h"
+#include "_PCF8574.h"
 //#include "socket_tcp.h"
 
 // const char* name = "Luong";
@@ -23,12 +24,20 @@ ModeSock _mode = CLIENT;
 _Modbus modbus;
 
 uint8_t* rcv;
-
+_PCF8574 Relay;
+_PCF8574 IO;
 void setup()   
 {   
 
     Serial.begin(9600); 
     modbus.begin_modbus();
+    // khởi tạo i2c.
+    Relay.begin(RelayAdd, &Wire);
+    //IO.begin(IOAdd,&Wire);
+    Relay.pinMode(Relay_1,OUTPUT);
+    Relay.pinMode(Relay_2,OUTPUT);
+    Relay.pinMode(Relay_3,OUTPUT);
+    Relay.pinMode(Relay_4,OUTPUT);
     //Serial1.begin(9600,SERIAL_8N1, 16,17,false, 10UL); //do cấu hình chân :))
     //Serial2.begin(9600);
     /*
@@ -83,28 +92,20 @@ void loop()
     Serial.println(Ethernet.linkStatus());
     
     */
-    // rcv = modbus.Send_requet(1,0x03,0x0000,0x0002);
-    // if(rcv != nullptr)
-    // {
-    //     for (uint8_t i = 0; i < sizeof(rcv); i++)
-    //     { 
-    //         if (i > 2)
-    //         {
-    //             rcv[i] = i;
-    //         }
-    //         Serial.print(rcv[i], HEX);
-    //         Serial.print(" ");
-    //     }
-    // }
-    // delay(5000);
-    // modbus.Send_requet(0x02,0x10,0x0000,rcv);
-    
-    float temp, hum;
-    readtemphum(1, &temp, &hum);
-
-    Serial.printf("nhiet do: %.2f", temp);
+    float temp, xhum;
+    readtemphum(1, &temp, &xhum);
+    Serial.printf("nhiet do: %.1f", temp);
     Serial.println();
-    Serial.printf("do am: %.2f", hum);
+    Serial.printf("do am: %.1f", xhum);
     Serial.println();
-    delay(5000);
+    Relay.digitalwrite(Relay_1,HIGH);
+    Relay.digitalwrite(Relay_2,HIGH);
+    Relay.digitalwrite(Relay_3,HIGH);
+    Relay.digitalwrite(Relay_4,HIGH);
+    delay(2000);
+    Relay.digitalwrite(Relay_1,LOW);
+    Relay.digitalwrite(Relay_2,LOW);
+    Relay.digitalwrite(Relay_3,LOW);
+    Relay.digitalwrite(Relay_4,LOW);
+    delay(2000);
 }

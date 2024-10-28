@@ -18,7 +18,22 @@
 #define MOSI    23
 #define CS      5
 #define port    10000
-
+// define relay.
+#define RelayAdd    0x21
+#define Relay_1     0
+#define Relay_2     1
+#define Relay_3     2
+#define Relay_4     3   
+// define IO.
+#define IOAdd       0x23
+#define IO_1        0
+#define IO_2        1
+#define IO_3        2
+#define IO_4        3
+#define IO_5        4
+#define IO_6        5
+#define IO_7        6
+#define IO_8        7
 // octet giá trị nhận từ web hoặc tool.
 typedef struct 
 {
@@ -41,6 +56,8 @@ typedef enum
     AUTO,
     MANUAL
 }MODE_t;
+
+
 
 /*************Set Up Quantity**************/
 

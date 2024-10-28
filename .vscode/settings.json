@@ -22,5 +22,6 @@
         "random": "cpp",
         "algorithm": "cpp",
         "tuple": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "D:/Platform_io/Tu_DK_DieuHoa_socket_tcp/lib/Adafruit_BusIO"
 }
