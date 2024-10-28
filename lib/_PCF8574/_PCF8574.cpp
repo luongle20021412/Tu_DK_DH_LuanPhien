@@ -23,11 +23,11 @@ uint8_t _PCF8574::digitalreadbyte(uint8_t r)
 }
 bool _PCF8574::digitalwrite(uint8_t _pinNum, bool val)
 {
-    if(val) // High
+    if(val == LOW) // LOW
     {
         _writeBuf |= 1 << _pinNum;
     }
-    else // Low
+    else // HIGH
     {  
         _writeBuf &= ~(1 << _pinNum);
     }
@@ -36,17 +36,17 @@ bool _PCF8574::digitalwrite(uint8_t _pinNum, bool val)
 bool _PCF8574::digitalread(uint8_t _pinNum)
 {
     i2c_dev->read(&_readBuf, 1);
-    return (_readBuf >> _pinNum) & 0x1;
+    return (_readBuf >> _pinNum) & 0x01;
 }
 bool _PCF8574::pinMode(uint8_t _pinNum, bool val)
 {
     if(val == INPUT || val == INPUT_PULLUP)
     {
-        _writeBuf |= 1 << _pinNum;
+       _writeBuf |= 1 << _pinNum;
     }
     else
     {
-        _writeBuf &= ~(1 << _pinNum);
+         _writeBuf &= ~(1 << _pinNum);
     }
     return i2c_dev->write(&_writeBuf, 1);
 }

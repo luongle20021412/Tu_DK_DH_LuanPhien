@@ -30,7 +30,7 @@
 #define IO_2        1
 #define IO_3        2
 #define IO_4        3
-#define IO_5        4
+#define IO_Machine  4
 #define IO_6        5
 #define IO_7        6
 #define IO_8        7
@@ -57,7 +57,10 @@ typedef enum
     MANUAL
 }MODE_t;
 
-
+//func.
+void State_Machine(void);
+void IQR_MANUAL();
+void setup_IQR(hw_timer_t **time,void (*NameIQR)());
 
 /*************Set Up Quantity**************/
 

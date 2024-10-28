@@ -23,7 +23,7 @@ SoketTcp_WF _client;
 ModeSock _mode = CLIENT;
 
 _Modbus modbus;
-MODE_t Machine;
+MODE_t Machine = AUTO;
 
 
 _PCF8574 Relay;
@@ -36,6 +36,7 @@ uint32_t timeTick = 0;
 uint32_t timeLimit_DH1 = 0, timeLimit_DH2 = 2; // set bằng tool hoặc web.
 bool Old_IO_1,Old_IO_2,Old_IO_3,Old_IO_4;   //biến trạng thái cũ nút nhấn.
 bool IO1_State,IO2_State,IO3_State,IO4_State; // biến trạng thái nút nhấn.
+static volatile bool Flag;
 void setup()   
 {   
 
@@ -52,26 +53,38 @@ void setup()
     IO.pinMode(IO_2, INPUT);
     IO.pinMode(IO_3, INPUT);
     IO.pinMode(IO_4, INPUT);
-    // khởi tạo relay.
+    // khởi tạo relay(MỨC THẤP).
     Relay.pinMode(Relay_1,OUTPUT);  // điều hòa 1.
     Relay.pinMode(Relay_2,OUTPUT);  // điều hòa 2.
     Relay.pinMode(Relay_3,OUTPUT);  // quạt 1.
     Relay.pinMode(Relay_4,OUTPUT);  // quạt 2.
     // set ngắt.
-    setup_IQR(&timeIRQ, IQR_MANUAL);
+    //setup_IQR(&timeIRQ, IQR_MANUAL);
     //
+    //delay(5000);
+    //Serial.println("Đã qua setup");
 }
 
 void loop() 
 {
     State_Machine(); // láy trạng thái hoạt động
-    readtemphum(1,&temp, &hum); // đọc giá trị nhiệt độ độ ẩm.
-    timeTick = millis();
+     if((millis() - timeTick) > 1000) // 1s đọc nhiệt độ 1 lần.
+    {  
+        //Serial.println("Đã vào temp");
+        readtemphum(1,&temp,&hum);
+        timeTick = millis();
+    }
     if(Machine == AUTO)
     {
-        tempSet = 28; // cái này sẽ phải set trong cấu hình tool hoặc web.
+        //Serial.println("Đã vào manual");
+        tempSet = 28; // cái này sẽ phải lấy từ trong eppr, tool hoặc web cấu hình mà ghi vào eppr.
         if(temp >= tempSet)
         {
+            Serial.printf("Temp: ", temp);
+            Serial.println();
+            Serial.printf("Temp set: ", tempSet);
+            Serial.println();
+            Serial.println("Đã vào ngưỡng");
             // nhiệt độ đạt ngưỡng bật hết quạt với điều hòa.
             Relay.digitalwrite(Relay_1,HIGH); // bật điều hòa 1.
             Relay.digitalwrite(Relay_2,HIGH);
@@ -80,6 +93,7 @@ void loop()
         }
         else //nếu không đạt ngưỡng.
         {
+            // dùng timetick
             if(Relay.digitalread(Relay_1)) // đh 1 đang bật.
             {
                 timeTick = millis();
@@ -116,47 +130,40 @@ void loop()
                 Relay.digitalwrite(Relay_2,LOW); // bật điều hòa 2.
                 timeTick = millis();
             }
-            
         }
     }
     else if(Machine == MANUAL)
     {
-        // bật bằng mút nhấn.
-        if(IO1_State)
+        //Serial.println("Đã vào manual");
+        // lấy trạng thái.
+        if(IO.digitalread(IO_1) && !Old_IO_1) // điều hòa 1.
         {
-            Relay.digitalwrite(Relay_1,HIGH);
+            IO1_State =! IO1_State;
         }
-        else
+        Old_IO_1 = IO.digitalread(IO_1);
+
+        if(IO.digitalread(IO_2) && !Old_IO_2) // điều hòa 2.
         {
-            Relay.digitalwrite(Relay_1,LOW);
+            IO2_State =!IO2_State;
         }
-        if(IO2_State)
+        Old_IO_2 = IO.digitalread(IO_2);
+        if(IO.digitalread(IO_3) && !Old_IO_3) // quạt 1.
         {
-            Relay.digitalwrite(Relay_2,HIGH);
+            IO3_State =! IO3_State;
         }
-        else
+        Old_IO_3 = IO.digitalread(IO_3);
+        if(IO.digitalread(IO_4) && !Old_IO_4) // quạt 2.
         {
-            Relay.digitalwrite(Relay_2,LOW);
+            IO4_State =! IO4_State;
         }
-        if(IO3_State)
-        {
-            Relay.digitalwrite(Relay_3,HIGH);
-        }
-        else
-        {
-            Relay.digitalwrite(Relay_3,LOW);
-        }
-        if(IO4_State)
-        {
-            Relay.digitalwrite(Relay_4,HIGH);
-        }
-        else
-        {
-            Relay.digitalwrite(Relay_4,LOW);
-        }
+        Old_IO_4 = IO.digitalread(IO_4);
+        // bật bằng mút nhấn.(nhấn 1 lần là bật nhấn 2 lần là tắt)
+        Relay.digitalwrite(Relay_1,IO1_State ? HIGH: LOW);
+        Relay.digitalwrite(Relay_2,IO2_State ? HIGH: LOW);
+        Relay.digitalwrite(Relay_3,IO3_State ? HIGH: LOW);
+        Relay.digitalwrite(Relay_4,IO4_State ? HIGH: LOW);
     }
 }
-
 
 void State_Machine(void)
 {
@@ -171,12 +178,13 @@ void State_Machine(void)
     }
     Old_Machine = IO.digitalread(IO_Machine);
 }
-
 void IQR_MANUAL() // đọc trạng thái nút nhấn bằng ngắt.
 {
+    Flag = false;
     if(Machine == MANUAL)
     {
         if(IO.digitalread(IO_1) && !Old_IO_1) // điều hòa 1.
+
         {
             IO1_State =! IO1_State;
         }
@@ -204,6 +212,6 @@ void setup_IQR(hw_timer_t **time,void (*NameIQR)())
 {
     *time = timerBegin(0,80,true); // set timer 0 và 1MHz, đếm lên.
     timerAttachInterrupt(*time,NameIQR, true);
-    timerAlarmWrite(*time, 100000, true); //100ms ngắt 1 lần.
+    timerAlarmWrite(*time, 10000, true); //100ms ngắt 1 lần.
     timerAlarmEnable(*time); // bật ngắt.  
 }

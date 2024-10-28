@@ -123,7 +123,7 @@ uint8_t* _Modbus ::Send_requet(uint8_t id,uint8_t xFunc, uint16_t xREG,uint8_t _
                 // }
                 // Serial.println();
             }
-            delay(1000);
+            delay(100);
             // nhận yêu cầu phản hồi.
             if(Serial1.available() > 0) // có phản hồi lại
             {
@@ -142,6 +142,7 @@ uint8_t* _Modbus ::Send_requet(uint8_t id,uint8_t xFunc, uint16_t xREG,uint8_t _
             else
             {
                 //Serial.println("chưa có phản hồi...");
+                return nullptr;
             }  
         }
         else if(xSerial == SERIAL2)
@@ -151,7 +152,7 @@ uint8_t* _Modbus ::Send_requet(uint8_t id,uint8_t xFunc, uint16_t xREG,uint8_t _
                 Serial2.write(Send, 8);
                 Serial2.flush();
             } 
-            delay(1000);
+            delay(10);
             // nhận yêu cầu phản hồi.
             if(Serial2.available() > 0) // có phản hồi lại
             {
@@ -170,7 +171,7 @@ uint8_t* _Modbus ::Send_requet(uint8_t id,uint8_t xFunc, uint16_t xREG,uint8_t _
         // FC 0x03 0x04.
         if(Send[1] == 0x03 || Send[1] == 0x04)
         {
-           // Serial.println("đã vào check crc đc phản hồi...");
+            //Serial.println("đã vào check crc đc phản hồi...");
             uint8_t lenght = (_numREG * 2) + 5;
             // Serial.println(".............");
             // Serial.println(_numREG, HEX);

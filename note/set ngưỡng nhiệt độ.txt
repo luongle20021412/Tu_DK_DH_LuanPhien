@@ -1,0 +1,1 @@
+- Cài ngưỡng nhiệt độ min max,hiệu chuẩn nhiệt độ,(cài trên web).
