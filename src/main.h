@@ -59,8 +59,7 @@ typedef enum
 
 //func.
 void State_Machine(void);
-void IQR_MANUAL();
-void setup_IQR(hw_timer_t **time,void (*NameIQR)());
+void setup_Timelimit(void);
 
 /*************Set Up Quantity**************/
 
