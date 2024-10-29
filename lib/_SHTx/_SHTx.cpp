@@ -17,7 +17,7 @@ void readtemphum(uint8_t id, float *temp, float *hum,int _Norm )
     //Serial.println("............");
     if(Rcv == nullptr)
     {
-        Serial.println("Đã nullptr");
+        //Serial.println("Đã nullptr");
         return;
     }
     Rawtemp = ((Rcv[0] << 8 )| Rcv[1]);   // lấy giá trị nhiệt độ.
@@ -27,8 +27,8 @@ void readtemphum(uint8_t id, float *temp, float *hum,int _Norm )
     else x= 0.01;               // độ phân giải 0.01
     *temp = (float)Rawtemp * x + _Norm;
     *hum = (float)Rawhum* x ;
-    // Serial.printf("Temx: %.2f\n", *temp);
-    // Serial.printf("humx: %.2f\n", *hum);
+    Serial.printf("Temx: %.2f\n", *temp);
+    //Serial.printf("humx: %.2f\n", *hum);
     if(_Norm != 0)
     {
         *temp = *temp + _Norm;
