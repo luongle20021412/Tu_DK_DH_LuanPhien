@@ -66,7 +66,7 @@ void setup()
 void loop() 
 {
     State_Machine(); // láy trạng thái hoạt động
-     if((millis() - timeTickTemp) > 5000) // 5;s đọc nhiệt độ 1 lần.
+     if((millis() - timeTickTemp) > 1000) // 5;s đọc nhiệt độ 1 lần.
     {  
         //Serial.println("Đã vào temp");
         readtemphum(1,&temp,&hum);
