@@ -13,7 +13,7 @@ void readtemphum(uint8_t id, float *temp, float *hum,int _Norm )
     int16_t Rawtemp, Rawhum;
     float x;
     //Serial.println("xxxxxxxxxxxxxxxxxxxxxxx");
-    Rcv = Modbus.Send_requet(id, 0x04,0x0000,2); // lấy dữ liệu nhiệt độ và độ ẩm.
+    Rcv = Modbus.Send_requet(id, 0x03,0x0000,2); // lấy dữ liệu nhiệt độ và độ ẩm.
     //Serial.println("............");
     if(Rcv == nullptr)
     {
@@ -28,7 +28,7 @@ void readtemphum(uint8_t id, float *temp, float *hum,int _Norm )
     else x= 0.01;               // độ phân giải 0.01
     *temp = (float)Rawtemp * x + _Norm;
     *hum = (float)Rawhum* x ;
-    Serial.printf("Temx: %.2f\n", *temp);
+    //Serial.printf("Temx: %.2f\n", *temp);
     //Serial.printf("humx: %.2f\n", *hum);
     if(_Norm != 0)
     {

@@ -34,6 +34,36 @@
 #define IO_6        5
 #define IO_7        6
 #define IO_8        7
+// define LCD.
+#define LCD_Add     0x27
+#define ROW_LCD     4       // định nghĩa hàng.
+#define COL_LCD     20      // định nghĩa cột
+//choose set relay.
+typedef enum 
+{
+    NO_SET_TIME = 0,
+    SET_RL1,
+    SET_RL2,
+    SET_RL3,
+    SET_RL4,
+}SetTime_t;
+
+typedef enum 
+{
+    NO_SET_UP = 0,
+    SET_TIME,
+    SET_TEMP,
+}SetUp_t;
+
+typedef enum 
+{
+    NO_SET_TEMP = 0,
+    xTEMP_MAX,
+    xTEMP_MIN,
+    xTEMP_LIMIT,
+    xIMMPALE
+}SetTemp_t;
+
 // octet giá trị nhận từ web hoặc tool.
 typedef struct 
 {
@@ -59,7 +89,8 @@ typedef enum
 
 //func.
 void State_Machine(void);
-void setup_Timelimit(void);
+void setup_Button_(void);
+void Dislplay_LCD(void);
 
 /*************Set Up Quantity**************/
 
