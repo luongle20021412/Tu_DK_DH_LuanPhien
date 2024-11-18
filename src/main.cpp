@@ -41,17 +41,20 @@ SetUp_t Setup = NO_SET_UP;
 SetTemp_t SetTemp = NO_SET_TEMP;
 
 hw_timer_t *timeIRQ;
-
+//id 
+uint8_t _id = 1;
 // biến toàn cục.
 float temp,hum, tempSetMax, tempSetMin;
+int tempIMPALE = 0; // biến này dùng để điều chỉnh nhiệt độ.
 uint32_t timeTickDH1 = 0, timeTickDH2 = 0 ,timeTickTemp = 0, timeTick = 0;
-uint8_t timeset1 = 2, timeset2 = 3, timeset3,timeset4, countSet = 0; // biến của chế độ setuo. set bằng tool hoặc web | set theo giờ.
+uint8_t timeset1 = 1, timeset2 = 1, timeset3, timeset4, countSet = 0; // biến của chế độ setuo. set bằng tool hoặc web | set theo giờ.
 uint32_t timeLimit_DH1, timeLimit_DH2; 
 bool Old_IO_1,Old_IO_2,Old_IO_3,Old_IO_4;   //biến trạng thái cũ nút nhấn.
 bool IO1_State,IO2_State,IO3_State,IO4_State; // biến trạng thái nút nhấn.
-bool Starttick1, Starttick2, StateSet, _bool; // biến đếm thời gian bắt đầu.
-volatile bool RL1_State,RL2_State,RL3_State,RL4_State; 
-
+bool Starttick1, Starttick2, StateSet; // biến đếm thời gian bắt đầu.
+volatile bool RL1_State,RL2_State,RL3_State,RL4_State; \
+bool displayDelete; // biến xóa mà hình.
+static uint8_t countSetup = 0, countSetTime = 0, countSetTemp = 0; // biến đếm các lựa chọn của trạng thái setup.
 void setup()   
 {   
 
@@ -78,20 +81,20 @@ void setup()
     Relay.pinMode(Relay_4,OUTPUT);  // quạt 2.
     //Serial.println("Đã qua setup");
     // cacl
-    timeLimit_DH1 = 100000;//timeset1 * 1000 * 60 * 60;
-    timeLimit_DH2 = 100000;//timeset2 * 1000 * 60 * 60;
+    timeLimit_DH1 = cacl_Timetick(timeset1);
+    timeLimit_DH2 = cacl_Timetick(timeset2);
     //Machine = MANUAL;
 }
 
 void loop() 
 {
     State_Machine(); // láy trạng thái hoạt động
-    //Dislplay_LCD(); // hiển thị màn hình.
+    Dislplay_LCD(); // hiển thị màn hình.
     if((millis() - timeTickTemp) > 1000) // 5;s đọc nhiệt độ 1 lần.
     {  
         //Serial.println("Đã vào temp");
-        readtemphum(1,&temp,&hum);
-        Serial.printf("temp:  %.1f\n", temp);
+        readtemphum(_id,&temp,&hum, tempIMPALE);
+        //Serial.printf("temp:  %.1f\n", temp);
         timeTickTemp = millis();
     }
     if(Machine == AUTO)
@@ -108,8 +111,8 @@ void loop()
         // Serial.println(RL3_State);
         // Serial.println(RL4_State);    
         //Serial.println("Đã vào manual");
-        tempSetMax = 28; // cái này sẽ phải lấy từ trong eppr, tool hoặc web cấu hình mà ghi vào eppr.
-        tempSetMin = 25;
+        //tempSetMax = 28; // cái này sẽ phải lấy từ trong eppr, tool hoặc web cấu hình mà ghi vào eppr.
+        //tempSetMin = 25;
         if(temp >= tempSetMax)
         {
             // Serial.println("Đã vào ngưỡng trên");
@@ -241,6 +244,12 @@ void loop()
 }
 bool stateMachine;
 bool Old_Machine;
+uint32_t cacl_Timetick(uint8_t value)
+{
+    uint32_t timeLimit;
+    timeLimit = value * 1000 * 60 * 60; // đổi thười gian h ra tick.
+    return timeLimit;
+}
 void State_Machine(void)
 {
     
@@ -261,21 +270,26 @@ void State_Machine(void)
 }
 void setup_Button_(void)
 {
-    static uint8_t countSetup = 0;
-    static uint8_t countSetTime = 0;
-    static uint8_t countSetTemp = 0;
-    static bool oke_setup, oke_settime, oke_settemp;
-    static int8_t TempSet = 0; // biến tăng giảm giá trị nhiệt độ nếu muốn điều chỉnh cho phù hợp.
+    static bool oke_setup, oke_settime, oke_settemp,oke_choose, block_setup, block_settime, block_settemp;
+    static int TempSet = 0; // biến tăng giảm giá trị nhiệt độ nếu muốn điều chỉnh cho phù hợp.
     // vào chế độ cài đặt.
     if(IO.digitalread(IO_1) && countSet != 10) // mode set | countset = 10 sẽ block
     {
         //Serial.println("da vao");
-        if((millis() - timeTick) > 1000) // 1s
+        if((millis() - timeTick) > 000) // 1s
         {  
             //Serial.println("da vao 1s");
             countSet ++;
+            displayDelete = true;
             Serial.println(countSet);
-            if(countSet == 10) Setup = NO_SET_UP;
+            if(countSet == 10)
+            {
+                Setup = NO_SET_UP;
+                countSetup = 0;
+                countSetTime = 0;
+                countSetTemp = 0;
+                
+            }
             timeTick = millis();
             
         }
@@ -284,216 +298,424 @@ void setup_Button_(void)
     {
         if(countSet < 10 || countSet > 10) countSet = 0;
     }
-    Old_IO_1 = IO.digitalread(IO_1);
-
+/*******************************************************************************/
     if(countSet == 10)
-    {   // tăng giá trị.
+    {   
+        /*********************************nút số 1*********************************/
+        if(IO.digitalread(IO_1) && !Old_IO_1)
+        {
+            Serial.println("Đã nhán nút số 1 để chọn .");
+            displayDelete = true;
+            if(countSetup != 0 && block_setup == false) oke_setup = true, block_setup = true;
+            if(countSetTime != 0 && countSetup == 1 && block_settime == false) oke_settime = true, block_settime = true;
+            if(countSetTemp != 0 && countSetup == 2 && block_settemp == false) oke_settemp = true, block_settemp = true;
+
+            if(modeSetTime != NO_SET_TIME || SetTemp != NO_SET_TEMP) oke_choose = true;
+            // Serial.print("oke setup: "); Serial.println(oke_setup);
+            // Serial.print("oke settime: "); Serial.println(oke_settime);
+            // Serial.print("oke settemp: "); Serial.println(oke_settemp);
+
+            // Serial.print(" setup: "); Serial.println(Setup);
+            // Serial.print(" settime: "); Serial.println(modeSetTime);
+            // Serial.print(" settemp: "); Serial.println(SetTemp);
+
+        }
+        Old_IO_1 = IO.digitalread(IO_1);
+        /*********************************nút số 2*********************************/
+        // nếu nhấn nút 2 thì quay lại.
+        if(IO.digitalread(IO_2) && !Old_IO_2)
+        {
+            //Serial.println("Đã nhán nút số 2 quay lại.");
+            displayDelete = true;
+            if(Setup == NO_SET_UP) 
+            {
+                Serial.println("thoát ở khỏi setup");
+                Setup = NO_SET_UP; 
+                modeSetTime = NO_SET_TIME;
+                SetTemp = NO_SET_TEMP;
+                countSet = 0; 
+                oke_setup = false;
+                oke_settime = false;
+                oke_settemp = false;
+                block_setup = false;
+            }
+            else if((Setup == SET_TIME && modeSetTime == NO_SET_TIME ) || (Setup == SET_TEMP && SetTemp == NO_SET_TEMP))
+            { 
+                Serial.println("thoát ở chọn RL");
+                //countSetTime = 0;
+                countSetup = 0; 
+                oke_setup = false;
+                block_setup = false;
+                Setup = NO_SET_UP;
+            }
+            else if(modeSetTime != NO_SET_TIME)
+            {
+                Serial.println("thoát ở chỉnh time");
+                countSetTime = 0;
+                oke_settime = false;
+                block_settime = false;
+                modeSetTime = NO_SET_TIME;
+            }
+            else if(SetTemp != NO_SET_TEMP) 
+            { 
+                Serial.println("thoát ở chỉnh temp");
+                countSetTemp = 0; 
+                oke_settemp = false;
+                block_settemp = false;
+                SetTemp = NO_SET_TEMP;
+            }
+            // Serial.print("a: "); Serial.println(countSet);
+            // Serial.print("b: "); Serial.println(countSetTime);
+            // Serial.print("c: "); Serial.println(countSetTemp);
+            // Serial.print("MOdesettime "); Serial.println(modeSetTime);
+            // Serial.print("set temp "); Serial.println(SetTemp);
+            // Serial.print("set up "); Serial.println(Setup);
+        }
+        Old_IO_2 = IO.digitalread(IO_2);
+        
+        /*********************************nút số 3*********************************/
+        // tăng giá trị.
         if(IO.digitalread(IO_3) && !Old_IO_3)
         {
+            Serial.println("Đã nhán nút số 3 ++.");
             StateSet =! StateSet;
-            if(modeSetTime == NO_SET_TIME && SetTemp == NO_SET_TEMP) countSetup++;    // set up.
-            if(Setup == NO_SET_UP && SetTemp == NO_SET_TEMP && oke_setup == true) countSetTime++;        // set time
-            if(Setup == NO_SET_UP && modeSetTime == NO_SET_TIME && oke_setup == true) countSetTemp++;      // set temp.
-            if(countSetup >= 3)  countSetup = 0;
-            if(countSetTime >= 6) countSetTime = 0;
-            if(countSetTemp >= 5) countSetTemp = 0;
+            if(modeSetTime == NO_SET_TIME && SetTemp == NO_SET_TEMP && block_setup == false) countSetup++;    // set up.
+            else if(Setup == SET_TIME && SetTemp == NO_SET_TEMP && oke_setup == true && block_settime == false) countSetTime++;        // set time
+            else if(Setup == SET_TEMP && modeSetTime == NO_SET_TIME && oke_setup == true && block_settemp == false) countSetTemp++;      // set temp.
+
+            if(countSetup >= 3 || countSetup == 0) countSetup = 1;
+            else if((countSetTime >= 6 || countSetTime == 0) && oke_setup == true) countSetTime = 1;
+            else if((countSetTemp >= 5 || countSetTemp == 0) && oke_setup == true) countSetTemp = 1;
 
             // tăng giá trị của các RL, SET TIME, TEMP.
             if(modeSetTime == SET_RL1){timeset1++; if(timeset1 > 12) timeset1 = 0;}
-            if(modeSetTime == SET_RL2){timeset2++; if(timeset2 > 12) timeset2 = 0;}
-            if(modeSetTime == SET_RL3){timeset2++; if(timeset2 > 12) timeset2 = 0;}
-            if(modeSetTime == SET_RL4){timeset4++; if(timeset4 > 12) timeset4 = 0;}
+            else if(modeSetTime == SET_RL2){timeset2++; if(timeset2 > 12) timeset2 = 0;}
+            else if(modeSetTime == SET_RL3){timeset3++; if(timeset3 > 12) timeset3 = 0;}
+            else if(modeSetTime == SET_RL4){timeset4++; if(timeset4 > 12) timeset4 = 0;}
             
             // giá trị Temp
-            if(Setup == SET_TEMP){TempSet++; if(TempSet > 10) TempSet = 0;}  // tăng nhiệt độ.
+            if(SetTemp != NO_SET_TEMP)
+            {
+                TempSet++; 
+                if(TempSet > 10 && SetTemp == xIMMPALE) TempSet = 0;
+                Serial.println("Đã công temp.");
+            }  // tăng nhiệt độ.
+
+            // Serial.print("count SetUp: "); Serial.println(countSetup);
+            // Serial.print("count SetTIME: "); Serial.println(countSetTime);
+            // Serial.print("count SetTEMP: "); Serial.println(countSetTemp);
+
+            // Serial.print("oke setup: "); Serial.println(oke_setup);
+            // Serial.print("oke settime: "); Serial.println(oke_settime);
+            // Serial.print("oke settemp: "); Serial.println(oke_settemp);
+
+            // Serial.print(" setup: "); Serial.println(Setup);
+            // Serial.print(" settime: "); Serial.println(modeSetTime);
+            // Serial.print(" settemp: "); Serial.println(SetTemp);
         }
         Old_IO_3 = IO.digitalread(IO_3);
-
+        /*********************************nút số 4*********************************/
         // giảm giá trị.
         if(IO.digitalread(IO_4) && !Old_IO_4)
         {
+            Serial.println("Đã nhán nút số 4 --.");
             StateSet =! StateSet;
-            if(modeSetTime == NO_SET_TIME && SetTemp == NO_SET_TEMP) countSetup--;    // set up.
-            if(Setup == NO_SET_UP && SetTemp == NO_SET_TEMP && oke_setup == true) countSetTime--;        // set time
-            if(Setup == NO_SET_UP && modeSetTime == NO_SET_TIME && oke_setup == true) countSetTemp--;      // set temp.
-            if(countSetup >= 3)  countSetup = 2;
-            if(countSetTime >= 6) countSetTime = 5;
-            if(countSetTemp >= 5) countSetTemp = 4;
+            if(modeSetTime == NO_SET_TIME && SetTemp == NO_SET_TEMP && block_setup == false) countSetup--;    // set up.
+            else if(Setup == SET_TIME && SetTemp == NO_SET_TEMP && oke_setup == true && block_settime == false) countSetTime--;        // set time
+            else if(Setup == SET_TEMP && modeSetTime == NO_SET_TIME && oke_setup == true && block_settemp == false) countSetTemp--;      // set temp.
+            
+            if(countSetup >= 3 || countSetup == 0) countSetup = 2;
+            else if((countSetTime >= 6 || countSetTime == 0) && oke_setup == true) countSetTime = 5;
+            else if((countSetTemp >= 5 || countSetTemp == 0) && oke_setup == true) countSetTemp = 4; 
 
             // giảm giá trị của các RL, SET TIME, TEMP.
             if(modeSetTime == SET_RL1){timeset1--; if(timeset1 > 12) timeset1 = 12;}
-            if(modeSetTime == SET_RL2){timeset2--; if(timeset2 > 12) timeset2 = 12;}
-            if(modeSetTime == SET_RL3){timeset2--; if(timeset2 > 12) timeset2 = 12;}
-            if(modeSetTime == SET_RL4){timeset4--; if(timeset4 > 12) timeset4 = 12;}
-
+            else if(modeSetTime == SET_RL2){timeset2--; if(timeset2 > 12) timeset2 = 12;}
+            else if(modeSetTime == SET_RL3){timeset3--; if(timeset3 > 12) timeset3 = 12;}
+            else if(modeSetTime == SET_RL4){timeset4--; if(timeset4 > 12) timeset4 = 12;}
+            
             // giá trị Temp
-            if(Setup == SET_TEMP){TempSet--; if(TempSet > -10) TempSet = 0;}  // giảm nhiệt độ.
+            if(SetTemp != NO_SET_TEMP)
+            {
+                Serial.println("Đã trừ temp.");
+                TempSet--; 
+                if((TempSet > 10 || TempSet > -10) && SetTemp == tempIMPALE) TempSet = 0;
+                
+            }  // giảm nhiệt độ.
+            Serial.print("SetUp: "); Serial.println(countSetup);
+            Serial.print("SetTIME: "); Serial.println(countSetTime);
+            Serial.print("SetTEMP: "); Serial.println(countSetTemp);
         }
         Old_IO_4 = IO.digitalread(IO_4);
 
-        switch(countSetup)
-        {
-            case 0: {Setup = NO_SET_UP;break;}
-            case 1: {Setup = SET_TIME;break;}
-            case 2: {Setup = SET_TEMP;break;}
-            default: break;
+        /******************************Trạng thái*********************************/
+        if(oke_setup)
+        {   
+            switch(countSetup)
+            {
+                case 0: {Setup = NO_SET_UP;break;}
+                case 1: {Setup = SET_TIME;break;}
+                case 2: {Setup = SET_TEMP;break;}
+                default: break;
+            }
+            //Serial.print("ModeSetUP: "); Serial.println(Setup);
+            //oke_setup =! oke_setup;
+            if(oke_settime)
+            {
+                switch(countSetTime)
+                {
+                    case 0: {modeSetTime = NO_SET_TIME;break;}
+                    case 1: {modeSetTime = SET_RL1;break;}
+                    case 2: {modeSetTime = SET_RL2;break;}
+                    case 3: {modeSetTime = SET_RL3;break;}
+                    case 4: {modeSetTime = SET_RL4;break;}
+                    default: break;
+                }
+               // Serial.print("ModeSetTime: "); Serial.println(modeSetTime);
+            // oke_settime =! oke_settime;
+            }
+            else if(oke_settemp)
+            {
+                switch (countSetTemp)
+                {
+                    case 0:{SetTemp = NO_SET_TEMP; break;}
+                    case 1:{SetTemp = xTEMP_MAX; break;}
+                    case 2:{SetTemp = xTEMP_MIN; break;}
+                    case 3:{SetTemp = xTEMP_LIMIT; break;}
+                    case 4:{SetTemp = xIMMPALE; break;}
+                    default: break;
+                }
+               // Serial.print("ModeSetTEMP: "); Serial.println(SetTemp);
+                //oke_settemp =! oke_settemp;
+            }
         }
-        switch(countSetTime)
-        {
-            case 0: {modeSetTime = NO_SET_TIME;break;}
-            case 1: {modeSetTime = SET_RL1;break;}
-            case 2: {modeSetTime = SET_RL2;break;}
-            case 3: {modeSetTime = SET_RL3;break;}
-            default: break;
-        }
-        switch (countSetTemp)
-        {
-        case 0:{SetTemp = NO_SET_TEMP; break;}
-        case 1:{SetTemp = xTEMP_MAX; break;}
-        case 2:{SetTemp = xTEMP_MIN; break;}
-        case 3:{SetTemp = xTEMP_LIMIT; break;}
-        case 4:{SetTemp = xIMMPALE; break;}
-        default: break;
-        }
-
-        // nút thoát ché độc cài đặt hoặc trở về.
-        if(IO.digitalread(IO_2) && countSet == 10) // off mode set
-        {
-            //Serial.println("da vao back");
-            modeSetTime = NO_SET_TIME;
-            Setup = NO_SET_UP;
-            countSet = 0;
-            StateSet = 0;
-        }
-        // chọn set time.
+        /************************************************************************************/
         if(Setup == SET_TIME)
         {
             if(modeSetTime == SET_RL1)
             {
                 //Serial.println("RL1");
-                timeLimit_DH1 = timeset1 * 1000 * 60 * 60;
+                timeLimit_DH1 = cacl_Timetick(timeset1);
             }
             else if(modeSetTime == SET_RL2)
             {
                 //if(timeset2 * 1000 * 60 * 60 > timeLimit_DH2) timeTickDH2 = ;
-                timeLimit_DH2 = timeset2 * 1000 * 60 * 60; 
+                timeLimit_DH1 = cacl_Timetick(timeset2);
             }
             else if(modeSetTime == SET_RL3)
-            {}
-            else if(modeSetTime == SET_RL4){}
-        // chọn set temp.
+            {
+                timeLimit_DH1 = cacl_Timetick(timeset3);
+            }
+            else if(modeSetTime == SET_RL4)
+            {
+                timeLimit_DH1 = cacl_Timetick(timeset4);
+            }
         }
+        // chọn set temp.
         else if(Setup == SET_TEMP) // set temp
         {
-            if(SetTemp == xTEMP_MAX) tempSetMax += TempSet;
-            else if(SetTemp == xTEMP_MIN) tempSetMin += TempSet;
+            if(SetTemp == xTEMP_MAX) tempSetMax = TempSet;
+            else if(SetTemp == xTEMP_MIN) tempSetMin = TempSet;
+            else if(SetTemp == xTEMP_LIMIT);
+            else if(SetTemp == xIMMPALE) tempIMPALE = TempSet;
         }
-        
-        // nếu nhấn nút 2 thì quay lại.
-        if(IO.digitalread(IO_2) && !Old_IO_2)
-        {
-            if(Setup != NO_SET_UP) {countSet = 0;}
-            if(modeSetTime != NO_SET_TIME) { modeSetTime = NO_SET_TIME; oke_settime = false;}
-            if(SetTemp != NO_SET_TEMP) { SetTemp = NO_SET_TEMP; oke_settemp = false;}
-        }
-        Old_IO_2 = IO.digitalread(IO_2);
-        //Serial.println(modeSetTime);
 
-        // nút chọn chế độ.
-        if(IO.digitalread(IO_1) && !Old_IO_1)
-        {
-            if(Setup != NO_SET_UP) oke_setup = true;
-            if(modeSetTime != NO_SET_TIME) oke_settime = true;
-            // chưa chó mode set temp.
-        }
-        Old_IO_1 = IO.digitalread(IO_1);
+        
     }
 }
 void Dislplay_LCD(void)
 {
-    LCD.setCursor(9,0); // cột 0 hàng 0;
-    LCD.print("VHB");
-    // hiển thị trạng thái relay.
-    LCD.setCursor(0,1); // cột 0 hàng 1;
-    LCD.print("[RELAY]:");
-    // Thời gian hoạt động relay.
-    LCD.setCursor(0,2); // cột 0 hàng 2;
-    LCD.print("[TIMESET]:");
-    // đơn vị
-    LCD.setCursor(16,2);
-    LCD.print("hour");
-    // hiển thị trạng thái hoạt động. 
-    LCD.setCursor(0,3); // cột 0 hàng 3;
-    LCD.print("[MODE]:");
-    if(Machine == AUTO || Machine == MANUAL)
+    static bool _bool;
+    // hiển thị chế độ setup
+    if(countSet == 10)
     {
-        if(Machine == AUTO)
-        {
-            LCD.setCursor(10,3);
-            LCD.print("AUTO  ");
-            // đọc trạng thái relay.
-            LCD.setCursor(10,1); // relay 1.
-            LCD.print(!RL1_State);
-            LCD.setCursor(12,1); // relay 2.
-            LCD.print(!RL2_State);
-            LCD.setCursor(14,1); // relay 3.
-            LCD.print(!RL3_State);
-            LCD.setCursor(16,1); // relay 4.
-            LCD.print(!RL4_State);
-        }
-        else
-        {
-            LCD.setCursor(10,3);
-            LCD.print("MANUAL");
-            // đọc trạng thái nút nhấn.
-            LCD.setCursor(10,1); // relay 1.
-            LCD.print(IO1_State);
-            LCD.setCursor(12,1); // relay 2.
-            LCD.print(IO2_State);
-            LCD.setCursor(14,1); // relay 3.
-            LCD.print(IO3_State);
-            LCD.setCursor(16,1); // relay 4.
-            LCD.print(IO4_State);
-        }
-    }
-    if(modeSetTime != NO_SET)
-    {
-        LCD.setCursor(0,0); // cột 0 hàng 0;
-        LCD.print("MODESET");
         if(millis() - timeTick > 500)
         {
             _bool =! _bool;
             timeTick = millis();
+            //Serial.println(_bool);
         }
-        if(modeSetTime == SET_RL1)
+        if(Setup == NO_SET_UP && modeSetTime == NO_SET_TIME && SetTemp == NO_SET_TEMP)
         {
-            //Serial.println("da vao rl1");
-            LCD.setCursor(10,2);
-            if(_bool) LCD.print("  ");
-            else LCD.print(timeset1);
-            LCD.setCursor(13,2);
-            LCD.print(timeset2);
+            if(displayDelete){LCD.clear(); displayDelete = false;}
+            LCD.setCursor(0,0); // cột 0 hàng 0;
+            LCD.print("MODE SET UP");
+            LCD.setCursor(0,1); // cột 0 hàng 1;
+            LCD.print("SET TIME");
+            if(_bool && countSetup == 1) LCD.setCursor(0,1), LCD.print("        ");
+            LCD.setCursor(0,2); // cột 0 hàng 2;
+            LCD.print("SET TEMP");
+            if(_bool && countSetup == 2) LCD.setCursor(0,2), LCD.print("        ");
         }
-        else if(modeSetTime == SET_RL2)
+        else if(Setup == SET_TIME)
         {
-            //Serial.println("da vao rl222");
-            LCD.setCursor(10,2);
-            LCD.print(timeset1);
-            LCD.setCursor(13,2);
-            if(_bool) LCD.print("  ");
-            else LCD.print(timeset2);
+            if(modeSetTime != NO_SET_TIME)
+            {
+                if(displayDelete){LCD.clear(); displayDelete = false;}
+                if(modeSetTime == SET_RL1)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("RELAY 1");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TIME:");
+                    LCD.setCursor(6,1);
+                    LCD.print(timeset1);
+                    if(_bool && modeSetTime == SET_RL1) LCD.setCursor(6,1), LCD.print("   ");
+                }
+                else if(modeSetTime == SET_RL2)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("RELAY 2");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TIME:");
+                    LCD.setCursor(6,1);
+                    LCD.print(timeset2);
+                    if(_bool && modeSetTime == SET_RL2) LCD.setCursor(6,1), LCD.print("   ");
+                }
+                else if(modeSetTime == SET_RL3)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("RELAY 3");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TIME:");
+                    LCD.setCursor(6,1);
+                    LCD.print(timeset3);
+                    if(_bool) LCD.setCursor(6,1), LCD.print("   ");
+                }
+                else if(modeSetTime == SET_RL4)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("RELAY 4");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TIME:");
+                    LCD.setCursor(6,1);
+                    LCD.print(timeset4);
+                    if(_bool) LCD.setCursor(6,1), LCD.print("   ");
+                }
+            }
+            else
+            {
+                if(displayDelete){LCD.clear(); displayDelete = false;}
+                LCD.setCursor(0,0); // cột 0 hàng 0;
+                LCD.print("SET TIME:");
+                LCD.setCursor(10,0); // cột 0 hàng 0;
+                LCD.print("RELAY 1");
+                if(_bool && countSetTime == 1) LCD.setCursor(10,0), LCD.print("       ");
+                LCD.setCursor(10,1); // cột 0 hàng 0;
+                LCD.print("RELAY 2");
+                if(_bool && countSetTime == 2) LCD.setCursor(10,1), LCD.print("       ");
+                LCD.setCursor(10,2); // cột 0 hàng 0;
+                LCD.print("RELAY 3");
+                if(_bool && countSetTime == 3)LCD.setCursor(10,2), LCD.print("       ");
+                LCD.setCursor(10,3); // cột 0 hàng 0;
+                LCD.print("RELAY 4");
+                if(_bool && countSetTime == 4)LCD.setCursor(10,3), LCD.print("       ");
+            }
+        }
+        else if(Setup == SET_TEMP)
+        {
+            if(SetTemp != NO_SET_TEMP)
+            {
+                if(displayDelete){LCD.clear(); displayDelete = false;}
+                if(SetTemp == xTEMP_MAX)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("TEM MAX");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TEMP:");
+                    LCD.setCursor(6,1);
+                    LCD.print((uint8_t)tempSetMax);
+                    if(_bool) LCD.setCursor(6,1), LCD.print("   ");
+                }
+                else if(SetTemp == xTEMP_MIN)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("TEM MAX");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TEMP:");
+                    LCD.setCursor(6,1);
+                    LCD.print((uint8_t)tempSetMin);
+                    if(_bool) LCD.setCursor(6,1), LCD.print("   ");
+                }
+                else if(SetTemp == xIMMPALE)
+                {
+                    LCD.setCursor(0,0); // cột 0 hàng 0;
+                    LCD.print("TEM MAX");
+                    LCD.setCursor(0,1); // cột 0 hàng 0;
+                    LCD.print("TEMP:");
+                    LCD.setCursor(6,1);
+                    LCD.print((uint8_t)tempIMPALE);
+                    if(_bool) LCD.setCursor(6,1), LCD.print("   ");
+                }
+            }
+            else
+            {
+                if(displayDelete){LCD.clear(); displayDelete = false;}
+                LCD.setCursor(0,0); // cột 0 hàng 0;
+                LCD.print("SET TEMP:");
+                LCD.setCursor(9,0); // cột 0 hàng 0;
+                LCD.print("TEMP MAX");
+                if(_bool && countSetTemp == 1) LCD.setCursor(9,0), LCD.print("        ");
+                LCD.setCursor(9,1); // cột 0 hàng 0;
+                LCD.print("TEMP MIN");
+                if(_bool && countSetTemp == 2) LCD.setCursor(9,1), LCD.print("        ");
+                LCD.setCursor(9,2); // cột 0 hàng 0;
+                LCD.print("TEMP LIMIT");
+                if(_bool && countSetTemp == 3) LCD.setCursor(9,2), LCD.print("          ");
+                LCD.setCursor(9,3); // cột 0 hàng 0;
+                LCD.print("TEMP IMPALE");
+                if(_bool && countSetTemp == 4) LCD.setCursor(9,3), LCD.print("            ");
+            }
         }
     }
     else
     {
-        LCD.setCursor(0,0); // cột 0 hàng 0;
-        LCD.print("         ");
-        // set theo giờ RL1.
-        LCD.setCursor(10,2);
-        LCD.print(timeLimit_DH1);
-        // set theo giờ RL2.
-        LCD.setCursor(13,2);
-        LCD.print(timeLimit_DH2);
-        
+        if(displayDelete){LCD.clear(); displayDelete = false;}
+        LCD.setCursor(9,0); // cột 0 hàng 0;
+        LCD.print("VHB");
+        // hiển thị trạng thái relay.
+        LCD.setCursor(0,1); // cột 0 hàng 1;
+        LCD.print("[RELAY]:");
+        // Thời gian hoạt động relay.
+        LCD.setCursor(0,2); // cột 0 hàng 2;
+        LCD.print("[TIMESET]:");
+        LCD.setCursor(11,2); // cột 0 hàng 2;
+        LCD.print(timeset1);
+        LCD.setCursor(13,2); // cột 0 hàng 2;
+        LCD.print(timeset2);
+        // hiển thị trạng thái hoạt động. 
+        LCD.setCursor(0,3); // cột 0 hàng 3;
+        LCD.print("[MODE]:");
+        if(Machine == AUTO || Machine == MANUAL)
+        {
+            if(Machine == AUTO)
+            {
+                LCD.setCursor(10,3);
+                LCD.print("AUTO  ");
+                // đọc trạng thái relay.
+                LCD.setCursor(10,1); // relay 1.
+                LCD.print(!RL1_State);
+                LCD.setCursor(12,1); // relay 2.
+                LCD.print(!RL2_State);
+                LCD.setCursor(14,1); // relay 3.
+                LCD.print(!RL3_State);
+                LCD.setCursor(16,1); // relay 4.
+                LCD.print(!RL4_State);
+            }
+            else
+            {
+                LCD.setCursor(10,3);
+                LCD.print("MANUAL");
+                // đọc trạng thái nút nhấn.
+                LCD.setCursor(10,1); // relay 1.
+                LCD.print(IO1_State);
+                LCD.setCursor(12,1); // relay 2.
+                LCD.print(IO2_State);
+                LCD.setCursor(14,1); // relay 3.
+                LCD.print(IO3_State);
+                LCD.setCursor(16,1); // relay 4.
+                LCD.print(IO4_State);
+            }
+        }
     }
 }

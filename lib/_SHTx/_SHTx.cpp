@@ -26,7 +26,7 @@ void readtemphum(uint8_t id, float *temp, float *hum,int _Norm )
 
     if(Rawtemp < 1000) x = 0.1; // độ phân giải 0.1
     else x= 0.01;               // độ phân giải 0.01
-    *temp = (float)Rawtemp * x + _Norm;
+    *temp = (float)Rawtemp * x + _Norm;     
     *hum = (float)Rawhum* x ;
     //Serial.printf("Temx: %.2f\n", *temp);
     //Serial.printf("humx: %.2f\n", *hum);

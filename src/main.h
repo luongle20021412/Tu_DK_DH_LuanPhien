@@ -39,6 +39,12 @@
 #define ROW_LCD     4       // định nghĩa hàng.
 #define COL_LCD     20      // định nghĩa cột
 //choose set relay.
+typedef enum
+{
+    AUTO,
+    MANUAL
+}MODE_t;
+
 typedef enum 
 {
     NO_SET_TIME = 0,
@@ -64,6 +70,12 @@ typedef enum
     xIMMPALE
 }SetTemp_t;
 
+//func.
+uint32_t cacl_Timetick(uint8_t value);
+void State_Machine(void);
+void setup_Button_(void);
+void Dislplay_LCD(void);
+
 // octet giá trị nhận từ web hoặc tool.
 typedef struct 
 {
@@ -81,16 +93,8 @@ typedef enum
     FOUR
 }Quantity_t;
 // mode 
-typedef enum
-{
-    AUTO,
-    MANUAL
-}MODE_t;
 
-//func.
-void State_Machine(void);
-void setup_Button_(void);
-void Dislplay_LCD(void);
+
 
 /*************Set Up Quantity**************/
 
